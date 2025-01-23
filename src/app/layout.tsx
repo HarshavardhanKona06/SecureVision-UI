@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import React from 'react';
 import './globals.css';
 import { Lato, Raleway } from 'next/font/google';
+import NavBar from '@/components/navBar';
 
 const raleway = Raleway({
   variable: '--font-raleway',
@@ -28,6 +29,7 @@ export default function RootLayout({
   return (
     <html lang='en' className={`${raleway.variable} ${lato.variable} antialiased`}>
       <body className='bg-cyan-950 font-lato'>
+        <NavBar />
         {children}
       </body>
     </html>
