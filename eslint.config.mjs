@@ -13,10 +13,10 @@ const eslintConfig = [
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
   {
     rules: {
-      'quotes': ['error', 'single'],
-      'indent': ['error', 2],
+      'quotes': ['error', 'double'],
+      'indent': ['error', 4],
       'semi': ['error', 'always'],
-      'jsx-quotes': ['error', 'prefer-single']
+      'jsx-quotes': ['error', 'prefer-double']
     }
   }
 ];

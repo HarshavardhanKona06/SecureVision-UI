@@ -1,8 +1,8 @@
 
 export default function Home() {
-  return (
-    <main>
-      Encrypt Image Page
-    </main>
-  );
+    return (
+        <main>
+          Encrypt Image Page
+        </main>
+    );
 }
