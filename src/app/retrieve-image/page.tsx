@@ -2,7 +2,7 @@
 export default function Home() {
   return (
     <main>
-      Home Page
+      Decrypt Image Page
     </main>
   );
 }
