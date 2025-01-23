@@ -9,10 +9,6 @@ interface ProcessedShares {
     share1: string | null;
     share2: string | null;
     recovery_data: string | null;
-    metadata: {
-        shape: number[];
-        dtype: string;
-    } | null;
 }
 
 const ACCEPTED_TYPES = [
@@ -32,7 +28,6 @@ export default function SecureImagePage() {
         share1: null,
         share2: null,
         recovery_data: null,
-        metadata: null,
     });
     const [error, setError] = useState<string | null>(null);
 
@@ -44,7 +39,7 @@ export default function SecureImagePage() {
                 setPreview(reader.result as string);
             };
             reader.readAsDataURL(file);
-            setProcessedShares({ share1: null, share2: null, recovery_data: null, metadata: null }); // Reset shares when new image is uploaded
+            setProcessedShares({ share1: null, share2: null, recovery_data: null});
             setError(null);
         }
     };
@@ -97,7 +92,6 @@ export default function SecureImagePage() {
                     share1: result.data.share1,
                     share2: result.data.share2,
                     recovery_data: result.data.recovery_data,
-                    metadata: result.data.metadata,
                 });
             } else {
                 throw new Error("Processing failed");
@@ -110,18 +104,15 @@ export default function SecureImagePage() {
     };
 
     const downloadShares = async () => {
-        // Type guard to ensure all required data is present
         if (!processedShares.share1 ||
             !processedShares.share2 ||
-            !processedShares.recovery_data ||
-            !processedShares.metadata) {
+            !processedShares.recovery_data) {
             console.error("Missing required data for download");
             return;
         }
 
         const zip = new JSZip();
 
-        // Remove the "data:image/png;base64," prefix if present
         const share1Data = processedShares.share1.includes("base64,")
             ? processedShares.share1.split("base64,")[1]
             : processedShares.share1;
@@ -130,11 +121,9 @@ export default function SecureImagePage() {
             ? processedShares.share2.split("base64,")[1]
             : processedShares.share2;
 
-        // Now we're sure these aren't null
         zip.file("share1.png", share1Data, { base64: true });
         zip.file("share2.png", share2Data, { base64: true });
         zip.file("recovery_data.bin", processedShares.recovery_data, { base64: true });
-        zip.file("metadata.json", JSON.stringify(processedShares.metadata));
 
         try {
             const content = await zip.generateAsync({ type: "blob" });
@@ -147,7 +136,6 @@ export default function SecureImagePage() {
             URL.revokeObjectURL(link.href);
         } catch (error) {
             console.error("Error generating zip file:", error);
-            // You might want to show this error to the user
             setError("Failed to download encrypted shares");
         }
     };
@@ -184,8 +172,8 @@ export default function SecureImagePage() {
             <div className="max-w-4xl mx-auto pt-10 min-[400px]:pt-20 flex flex-col items-center h-[calc(100vh-5rem)]">
                 {/* Animated Heading */}
                 <motion.h1
-                    initial={false}
-                    animate={{ opacity: [1, 0, 1] }}
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6 }}
                     className="text-cyan-50 text-2xl sm:text-3xl md:text-4xl font-raleway mb-8"
                 >
@@ -193,7 +181,12 @@ export default function SecureImagePage() {
                 </motion.h1>
 
                 {/* Content Container - Flex column on mobile, row on larger screens */}
-                <div className="w-full flex flex-col lg:flex-row justify-center gap-6">
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 0.2 }}
+                    className="w-full flex flex-col lg:flex-row justify-center gap-6 pt-4"
+                >
                     {/* Original Image Container */}
                     <motion.div
                         initial={{ x: 0, y: 0 }}
@@ -238,7 +231,7 @@ export default function SecureImagePage() {
                                                     e.preventDefault();
                                                     setImage(null);
                                                     setPreview("");
-                                                    setProcessedShares({ share1: null, share2: null, recovery_data: null, metadata: null });
+                                                    setProcessedShares({ share1: null, share2: null, recovery_data: null });
                                                 }}
                                                 className="p-2 rounded-full bg-red-500/50 hover:bg-red-500/80 transition-colors duration-200"
                                                 title="Delete"
@@ -307,7 +300,7 @@ export default function SecureImagePage() {
                                             className="relative w-1/2 h-full rounded-lg overflow-hidden"
                                         >
                                             <img
-                                                src={`data:image/png;base64,${processedShares.share1}`}
+                                                src={processedShares.share1 ? `data:image/png;base64,${processedShares.share1}` : ""}
                                                 alt="Share 1"
                                                 className="w-full h-full object-cover rounded-lg"
                                             />
@@ -321,7 +314,7 @@ export default function SecureImagePage() {
                                             className="relative w-1/2 h-full rounded-lg overflow-hidden"
                                         >
                                             <img
-                                                src={`data:image/png;base64,${processedShares.share2}`}
+                                                src={processedShares.share2 ? `data:image/png;base64,${processedShares.share2}` : ""}
                                                 alt="Share 2"
                                                 className="w-full h-full object-cover rounded-lg"
                                             />
@@ -342,11 +335,14 @@ export default function SecureImagePage() {
                             </motion.div>
                         )}
                     </AnimatePresence>
-                </div>
+                </motion.div>
 
                 {/* Action Button */}
                 {!isProcessed && (
-                    <button
+                    <motion.button
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: 0.4 }}
                         onClick={processImage}
                         disabled={!image || isProcessing}
                         className={`
@@ -360,7 +356,7 @@ export default function SecureImagePage() {
                         `}
                     >
                         {isProcessing ? "Securing the Image..." : "Secure Image"}
-                    </button>
+                    </motion.button>
                 )}
 
                 {error && (
