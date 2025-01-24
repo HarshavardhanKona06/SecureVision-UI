@@ -8,7 +8,7 @@ import JSZip from "jszip";
 interface ProcessedShares {
     share1: string | null;
     share2: string | null;
-    recovery_data: string | null;
+    zipFile: Blob | null;
 }
 
 const ACCEPTED_TYPES = [
@@ -27,7 +27,7 @@ export default function SecureImagePage() {
     const [processedShares, setProcessedShares] = useState<ProcessedShares>({
         share1: null,
         share2: null,
-        recovery_data: null,
+        zipFile: null
     });
     const [error, setError] = useState<string | null>(null);
 
@@ -39,7 +39,7 @@ export default function SecureImagePage() {
                 setPreview(reader.result as string);
             };
             reader.readAsDataURL(file);
-            setProcessedShares({ share1: null, share2: null, recovery_data: null});
+            setProcessedShares({ share1: null, share2: null, zipFile: null});
             setError(null);
         }
     };
@@ -86,16 +86,26 @@ export default function SecureImagePage() {
                 throw new Error("Failed to process image");
             }
 
-            const result = await response.json();
-            if (result.success) {
-                setProcessedShares({
-                    share1: result.data.share1,
-                    share2: result.data.share2,
-                    recovery_data: result.data.recovery_data,
-                });
-            } else {
-                throw new Error("Processing failed");
+            // Get the ZIP blob directly
+            const zipBlob = await response.blob();
+
+            // Extract files using JSZip
+            const zip = await JSZip.loadAsync(zipBlob);
+
+            // Get shares and create blob URLs
+            const share1Data = await zip.file("share1.png")?.async("blob");
+            const share2Data = await zip.file("share2.png")?.async("blob");
+
+            if (!share1Data || !share2Data) {
+                throw new Error("Missing required files in the response");
             }
+
+            setProcessedShares({
+                share1: URL.createObjectURL(share1Data),
+                share2: URL.createObjectURL(share2Data),
+                zipFile: zipBlob
+            });
+
         } catch (err) {
             setError(err instanceof Error ? err.message : "An error occurred");
         } finally {
@@ -104,41 +114,27 @@ export default function SecureImagePage() {
     };
 
     const downloadShares = async () => {
-        if (!processedShares.share1 ||
-            !processedShares.share2 ||
-            !processedShares.recovery_data) {
-            console.error("Missing required data for download");
+        if (!processedShares.zipFile) {
+            setError("No encrypted shares available");
             return;
         }
 
-        const zip = new JSZip();
-
-        const share1Data = processedShares.share1.includes("base64,")
-            ? processedShares.share1.split("base64,")[1]
-            : processedShares.share1;
-
-        const share2Data = processedShares.share2.includes("base64,")
-            ? processedShares.share2.split("base64,")[1]
-            : processedShares.share2;
-
-        zip.file("share1.png", share1Data, { base64: true });
-        zip.file("share2.png", share2Data, { base64: true });
-        zip.file("recovery_data.bin", processedShares.recovery_data, { base64: true });
-
-        try {
-            const content = await zip.generateAsync({ type: "blob" });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(content);
-            link.download = "encrypted_shares.zip";
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(link.href);
-        } catch (error) {
-            console.error("Error generating zip file:", error);
-            setError("Failed to download encrypted shares");
-        }
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(processedShares.zipFile);
+        link.download = "encrypted_shares.zip";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
     };
+
+    useEffect(() => {
+        return () => {
+            // Cleanup blob URLs when component unmounts
+            if (processedShares.share1) URL.revokeObjectURL(processedShares.share1);
+            if (processedShares.share2) URL.revokeObjectURL(processedShares.share2);
+        };
+    }, [processedShares.share1, processedShares.share2]);
 
     useEffect(() => {
         const handlePaste = (e: ClipboardEvent) => {
@@ -231,7 +227,7 @@ export default function SecureImagePage() {
                                                     e.preventDefault();
                                                     setImage(null);
                                                     setPreview("");
-                                                    setProcessedShares({ share1: null, share2: null, recovery_data: null });
+                                                    setProcessedShares({ share1: null, share2: null, zipFile: null });
                                                 }}
                                                 className="p-2 rounded-full bg-red-500/50 hover:bg-red-500/80 transition-colors duration-200"
                                                 title="Delete"
@@ -299,10 +295,12 @@ export default function SecureImagePage() {
                                             transition={{ duration: 0.4, delay: 0.4 }}
                                             className="relative w-1/2 h-full rounded-lg overflow-hidden"
                                         >
-                                            <img
-                                                src={processedShares.share1 ? `data:image/png;base64,${processedShares.share1}` : ""}
+                                            <Image
+                                                src={processedShares.share1 || ""}
                                                 alt="Share 1"
-                                                className="w-full h-full object-cover rounded-lg"
+                                                fill
+                                                className="object-cover rounded-lg"
+                                                sizes="(max-width: 768px) 50vw, 33vw"
                                             />
                                         </motion.div>
 
@@ -313,10 +311,12 @@ export default function SecureImagePage() {
                                             transition={{ duration: 0.4, delay: 0.6 }}
                                             className="relative w-1/2 h-full rounded-lg overflow-hidden"
                                         >
-                                            <img
-                                                src={processedShares.share2 ? `data:image/png;base64,${processedShares.share2}` : ""}
+                                            <Image
+                                                src={processedShares.share2 || ""}
                                                 alt="Share 2"
-                                                className="w-full h-full object-cover rounded-lg"
+                                                fill
+                                                className="object-cover rounded-lg"
+                                                sizes="(max-width: 768px) 50vw, 33vw"
                                             />
                                         </motion.div>
                                     </div>
