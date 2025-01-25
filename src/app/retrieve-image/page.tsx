@@ -1,8 +1,9 @@
+import RetrieveImagePage from "@/components/retrieveImagePage";
 
 export default function Home() {
     return (
         <main>
-          Decrypt Image Page
+            <RetrieveImagePage />
         </main>
     );
 }
